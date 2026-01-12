@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Bellen App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Auth Screen (Login/Register) -->
+    <div id="auth-screen">
+        <div class="auth-card" id="login-card">
+            <h2>Welkom Terug</h2>
+            <input type="text" id="login-username" placeholder="Gebruikersnaam">
+            <input type="password" id="login-password" placeholder="Wachtwoord">
+            <button class="btn btn-primary" onclick="Login()">Inloggen</button>
+            <p style="margin-top:15px; font-size:12px; color:#aaa;">Nog geen account? <button class="text-link" onclick="ToggleAuthMode()">Registreer hier</button></p>
+        </div>
+
+        <div class="auth-card hidden" id="register-card">
+            <h2>Account Maken</h2>
+            <input type="text" id="reg-username" placeholder="Kies een gebruikersnaam">
+            <input type="password" id="reg-password" placeholder="Kies een wachtwoord">
+            <button class="btn btn-primary" onclick="Register()">Registreren</button>
+            <p style="margin-top:15px; font-size:12px; color:#aaa;">Al een account? <button class="text-link" onclick="ToggleAuthMode()">Log hier in</button></p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-screen" class="hidden">
+        
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                Berichten <span class="sidebar-header-sub"></span>
+            </div>
+            <div class="user-list" id="user-list">
+                <!-- Users injected here -->
+            </div>
+            
+            <!-- My Profile Footer -->
+            <div class="sidebar-footer">
+                <div class="my-profile-preview" id="my-profile-preview" onclick="OpenProfileModal()">
+                    <!-- Injected JS -->
+                </div>
+                <div class="sidebar-controls">
+                    <button class="sidebar-icon-btn" id="sb-mic-btn" onclick="ToggleMic()" title="Mic">🎤</button>
+                    <button class="sidebar-icon-btn" id="sb-cam-btn" onclick="ToggleCam()" title="Camera">📷</button>
+                    <button class="sidebar-icon-btn" id="sb-deafen-btn" onclick="ToggleDeafen()" title="Deafen">🎧</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            
+            <!-- Chat View -->
+            <div id="chat-view">
+                <div class="chat-header">
+                    <div class="chat-user-info" id="chat-header-info">
+                        <!-- Injected JS -->
+                    </div>
+                    <button class="btn btn-primary" onclick="StartCall()">📞 Bellen</button>
+                </div>
+                <div class="messages-area" id="messages-area">
+                    <!-- Default text per request -->
+                    <div class="message received">
+                        Hoi ICT
+                        <span class="timestamp">10:00</span>
+                    </div> 
+                </div>
+                <div class="chat-footer">
+                    <input type="text" id="chat-input" placeholder="Typ een bericht...">
+                    <button class="btn btn-primary" onclick="SendMessage()">Verstuur</button>
+                </div>
+            </div>
+
+            <!-- Call View -->
+            <div id="call-view" class="hidden">
+                <div class="call-top-bar">
+                    <div id="call-notice" class="call-notice hidden"></div>
+                </div>
+                
+                <div class="call-grid" id="call-grid">
+                    <!-- Call participants injected here -->
+                </div>
+
+                <!-- Centralised Bottom Bar -->
+                <div class="call-bottom-bar">
+                    <button class="hud-btn" id="hud-mic-btn" onclick="ToggleMic()">🎤</button>
+                    <button class="hud-btn" id="hud-cam-btn" onclick="ToggleCam()">📷</button>
+                    
+                    <button class="end-call-btn" onclick="EndCall()">
+                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiA5Yy0xLjYgMC0zLjEuMjgtNC41MS44MmwtMS45LTEuOWMtLjUxLS41MS0xLjI4LS41MS0xLjc5IDBsLTIuMzkgMi4zOWMtLjIuMi0uMjkuNDYtLjI4LjczLjAxLjI5LjEyLjU2LjM0Ljc2IDIuNTYgMi4zIDUuOTMgMy43MiA5LjUzIDMuNzJzNi45Ny0xLjQyIDkuNTMtMy43MmMuMjItLjIuMzMtLjQ3LjM0LS43Ni4wMS0uMjgtLjA5LS41My0uMjgtLjczbC0yLjM5LTIuMzljLS41MS0uNTEtMS4yOC0uNTEtMS43OSAwbC0xLjkgMS45QzE1LjA5IDkuMjggMTMuNiA5IDEyIDl6Ii8+PC9zdmc+" alt="Ophangen">
+                    </button>
+                    
+                     <button class="hud-btn" id="hud-deafen-btn" onclick="ToggleDeafen()">🎧</button>
+                </div>
+            </div>
+
+            <!-- Context Menu for Users -->
+            <div id="context-menu" class="hidden">
+                <div id="ctx-header" style="color:#aaa; font-size:0.8rem; padding: 2px 5px; border-bottom:1px solid #444; margin-bottom:5px;">User</div>
+                <label style="font-size:0.8rem; margin-left:5px;">Volume</label>
+                <input type="range" min="0" max="200" value="100" id="ctx-volume-slider">
+                <button onclick="ShowCtxProfile()">Profiel Bekijken</button>
+            </div>
+
+        </div>
+
+        <!-- Guide Overlay -->
+        <div id="guide-modal">
+            <div class="guide-card">
+                <h2>Snelgids</h2>
+                <div style="margin: 20px 0;">
+                    <div class="guide-step">
+                        <div class="step-number">1</div>
+                        <div>Selecteer een gebruiker links om te chatten.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">2</div>
+                        <div>Gebruik de balk onderin om berichten te sturen.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">3</div>
+                        <div>Klik op "Bellen" rechtsboven voor video/audio.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">4</div>
+                        <div>Sta microfoon toe. Je icoon wordt GROEN als je spreekt!</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width:100%" onclick="CloseGuide()">Begrepen!</button>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal -->
+         <div id="profile-modal" class="hidden">
+            <div class="modal-content">
+                <h3>Profiel Bewerken</h3>
+                <label>Gebruikersnaam (Alleen Lezen)</label>
+                <input type="text" id="edit-username" disabled>
+                
+                <label>Beschrijving</label>
+                <input type="text" id="edit-desc" placeholder="Jouw status...">
+
+                <div class="modal-actions">
+                    <button class="btn btn-danger" onclick="Logout()" style="margin-right:auto;">Uitloggen</button>
+                    <button class="btn" onclick="CloseProfileModal()">Annuleren</button>
+                    <button class="btn btn-primary" onclick="SaveProfile()">Opslaan</button>
+                </div>
+            </div>
+         </div>
+
+         <!-- View Profile Modal -->
+         <div id="view-profile-modal" class="hidden">
+            <div class="modal-content" style="text-align: center;">
+                <h3 id="vp-name">Gebruikersnaam</h3>
+                <img id="vp-avatar" src="" style="width: 80px; height: 80px; border-radius: 50%; margin: 15px auto; display: block;">
+                <p id="vp-desc" style="color: #bbb; margin-bottom: 20px;">Beschrijving...</p>
+                <button class="btn btn-primary" onclick="document.getElementById('view-profile-modal').classList.add('hidden')">Sluiten</button>
+            </div>
+         </div>
+
+    </div>
+
+    <script>
+        // --- State ---
+        let State = {
+            CurrentUser: null, // Populated after login
+            Token: null,
+            Users: [
+                { Id: 1, Name: 'Zorg', Avatar: 'https://ui-avatars.com/api/?name=Zorg&background=random', Description: 'Altijd beschikbaar' } // Fallback/Demo user
+            ],
+            ActiveChatUserId: 1,
+            IsInCall: false,
+            AudioContext: null,
+            Analyser: null,
+            MicrophoneStream: null,
+            AudioSource: null,
+            LocalMute: false,      // User preference
+            LocalDeafen: false,    // User preference 
+            CamEnabled: false,     // User preference
+            HasCam: false,         // Capability
+            HasMic: false          // Capability
+        };
+        
+        // --- Context Menu State ---
+        let CtxTargetUser = null;
+
+        // --- DOM Elements ---
+        const AuthScreen = document.getElementById('auth-screen');
+        const LoginCard = document.getElementById('login-card');
+        const RegisterCard = document.getElementById('register-card');
+        const AppScreen = document.getElementById('app-screen');
+        
+        const UserListEl = document.getElementById('user-list');
+        const ChatHeaderInfo = document.getElementById('chat-header-info');
+        const GuideModal = document.getElementById('guide-modal');
+        const ChatView = document.getElementById('chat-view');
+        const ChatInput = document.getElementById('chat-input');
+        const MessagesArea = document.getElementById('messages-area');
+        const CallView = document.getElementById('call-view');
+        const CallGrid = document.getElementById('call-grid');
+        const CallNotice = document.getElementById('call-notice');
+        const ProfileModal = document.getElementById('profile-modal');
+        const MyProfilePreview = document.getElementById('my-profile-preview');
+
+        let CallNoticeTimeout = null;
+
+        function SetCallNotice(message, type = 'error', timeoutMs = 6000) {
+            if (!CallNotice) return;
+
+            if (!message) {
+                CallNotice.classList.add('hidden');
+                CallNotice.textContent = '';
+                CallNotice.className = 'call-notice hidden';
+                return;
+            }
+
+            CallNotice.textContent = message;
+            CallNotice.className = `call-notice ${type}`;
+            CallNotice.classList.remove('hidden');
+
+            if (CallNoticeTimeout) clearTimeout(CallNoticeTimeout);
+            CallNoticeTimeout = setTimeout(() => {
+                CallNotice.classList.add('hidden');
+            }, timeoutMs);
+        }
+
+        // --- Auth Logic ---
+        function ToggleAuthMode() {
+            LoginCard.classList.toggle('hidden');
+            RegisterCard.classList.toggle('hidden');
+        }
+
+        async function Register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            
+            if(!username || !password) return alert("Vul alle velden in.");
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if(data.auth) {
+                    HandleAuthSuccess(data);
+                } else {
+                    alert(data.error || "Registratie mislukt");
+                }
+            } catch(e) {
+                console.error(e);
+                // Fallback for demo without backend running
+                alert("Kon server niet bereiken. Draait node server.js?");
+            }
+        }
+
+        async function Login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            if(!username || !password) return alert("Vul alle velden in.");
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if(data.auth) {
+                    HandleAuthSuccess(data);
+                } else {
+                    alert(data.error || "Check gegevens");
+                }
+            } catch(e) {
+                console.error(e);
+                 // Fallback for demo to allow UI testing even if user didn't start server
+                 alert("Kon server niet bereiken. Probeer 'Zorg' / 'password' als de server draait.");
+            }
+        }
+
+        async function HandleAuthSuccess(data) {
+            // Save Session
+            localStorage.setItem('vcall_token', data.token);
+            // Save backend user object 
+            localStorage.setItem('vcall_user', JSON.stringify(data.user));
+
+            State.Token = data.token;
+            // Map backend user to frontend structure
+            State.CurrentUser = {
+                Id: data.user.id,
+                Name: data.user.username,
+                Avatar: data.user.avatar,
+                Description: data.user.description,
+                GuideSeen: data.user.guide_seen
+            };
+
+            AuthScreen.classList.add('hidden');
+            AppScreen.classList.remove('hidden');
+            
+            // Fetch real users
+            try {
+                const res = await fetch('/api/users');
+                const users = await res.json();
+                // Filter out myself
+                State.Users = users.filter(u => u.Id !== State.CurrentUser.Id);
+                // Fallback if empty
+                if(State.Users.length === 0) {
+                     State.Users = [{ Id: 1, Name: 'Zorg', Avatar: 'https://ui-avatars.com/api/?name=Zorg&background=random', Description: 'Altijd beschikbaar' }];
+                }
+            } catch(e) { console.warn("Could not fetch users, using fallback", e); }
+
+            RenderSidebar();
+            RenderMyProfile();
+            if(State.Users.length > 0) SelectUser(State.Users[0].Id);
+
+            // Check Guide
+            if(!State.CurrentUser.GuideSeen) {
+                GuideModal.classList.remove('hidden');
+            } else {
+                GuideModal.classList.add('hidden');
+            }
+        }
+
+        function CloseGuide() {
+            GuideModal.classList.add('hidden');
+            if(State.Token) {
+                fetch('/api/users/guide_seen', {
+                    method: 'PUT',
+                    headers: {'x-access-token': State.Token}
+                });
+                State.CurrentUser.GuideSeen = 1; 
+                // Update local storage
+                let u = JSON.parse(localStorage.getItem('vcall_user'));
+                u.guide_seen = 1;
+                localStorage.setItem('vcall_user', JSON.stringify(u));
+            }
+        }
+
+        // --- Profile Logic ---
+        function RenderMyProfile() {
+            if(!State.CurrentUser) return;
+            MyProfilePreview.innerHTML = `
+                <img src="${State.CurrentUser.Avatar}" class="avatar" alt="Me">
+                <div class="user-info-col">
+                    <span style="font-weight:bold;">${State.CurrentUser.Name}</span>
+                    <span class="user-desc">${State.CurrentUser.Description || ''}</span>
+                </div>
+            `;
+        }
+
+        function OpenProfileModal() {
+            document.getElementById('edit-username').value = State.CurrentUser.Name;
+            document.getElementById('edit-desc').value = State.CurrentUser.Description || '';
+            ProfileModal.classList.remove('hidden');
+        }
+
+        function CloseProfileModal() {
+            ProfileModal.classList.add('hidden');
+        }
+
+        async function SaveProfile() {
+            const newDesc = document.getElementById('edit-desc').value;
+            State.CurrentUser.Description = newDesc;
+
+            // Optimistic update
+            RenderMyProfile();
+            CloseProfileModal();
+
+            // Send to backend
+            try {
+                await fetch('/api/users/me', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-access-token': State.Token
+                    },
+                    body: JSON.stringify({ description: newDesc })
+                });
+            } catch(e) { console.error("Save failed", e); }
+        }
+
+        function Logout() {
+            if(confirm("Weet je zeker dat je wilt uitloggen?")) {
+                State.Token = null;
+                State.CurrentUser = null;
+                
+                CloseProfileModal();
+                AppScreen.classList.add('hidden');
+                AuthScreen.classList.remove('hidden');
+                
+                // Clear inputs
+                document.getElementById('login-password').value = '';
+            }
+        }
+
+        // --- Sidebar & Chat ---
+        function RenderSidebar() {
+            UserListEl.innerHTML = '';
+            State.Users.forEach(User => {
+                const Item = document.createElement('div');
+                Item.className = `user-item ${User.Id === State.ActiveChatUserId ? 'active' : ''}`;
+                Item.onclick = () => SelectUser(User.Id);
+                Item.innerHTML = `
+                    <img src="${User.Avatar}" class="avatar" alt="User">
+                    <div class="user-info-col">
+                        <span>${User.Name}</span>
+                        <span class="user-desc">${User.Description || 'Geen beschrijving'}</span>
+                    </div>
+                `;
+                UserListEl.appendChild(Item);
+            });
+        }
+
+        async function SelectUser(Id) {
+            State.ActiveChatUserId = Id;
+            RenderSidebar(); 
+            
+            const User = State.Users.find(u => u.Id === Id);
+            if(User) {
+                ChatHeaderInfo.innerHTML = `
+                    <img src="${User.Avatar}" class="avatar" alt="User">
+                    <h3>${User.Name}</h3>
+                `;
+            }
+
+            // Load Messages
+            MessagesArea.innerHTML = '';
+            if(State.Token) {
+                try {
+                    const res = await fetch(`/api/messages/${Id}`, {
+                        headers: {'x-access-token': State.Token}
+                    });
+                    const msgs = await res.json();
+                    msgs.forEach(m => {
+                        const MsgEl = document.createElement('div');
+                        MsgEl.className = `message ${m.sender_id === State.CurrentUser.Id ? 'sent' : 'received'}`;
+                        
+                        let DeleteBtn = '';
+                        if(m.sender_id === State.CurrentUser.Id) {
+                            DeleteBtn = `<button class="msg-delete-btn" onclick="DeleteMessage(${m.id}, this)">x</button>`;
+                        }
+
+                        MsgEl.innerHTML = `
+                            ${m.content} ${DeleteBtn}
+                            <span class="timestamp">${m.timestamp}</span>
+                        `;
+                        MessagesArea.appendChild(MsgEl);
+                    });
+                    MessagesArea.scrollTop = MessagesArea.scrollHeight;
+                } catch(e) { console.error('Error loading messages'); }
+            }
+            
+            if(!State.IsInCall) {
+                ChatView.classList.remove('hidden');
+                CallView.classList.add('hidden');
+            }
+        }
+
+        async function DeleteMessage(id, btnEl) {
+             if(!confirm("Bericht verwijderen?")) return;
+             if(State.Token) {
+                 try {
+                     const res = await fetch(`/api/messages/${id}`, {
+                         method: 'DELETE',
+                         headers: {'x-access-token': State.Token}
+                     });
+                     if(res.ok) {
+                         const msgDiv = btnEl.closest('.message');
+                         if(msgDiv) msgDiv.remove();
+                     } else {
+                         alert("Kon bericht niet verwijderen.");
+                     }
+                 } catch(e) { console.error(e); }
+             }
+        }
+
+        async function SendMessage() {
+            const Text = ChatInput.value.trim();
+            if (!Text) return;
+
+            const Now = new Date();
+            const TimeString = Now.getHours().toString().padStart(2, '0') + ':' + Now.getMinutes().toString().padStart(2, '0');
+
+            // Optimistic UI - Needs ID for delete to work immediately? 
+            // We'll trust the reload or wait for server response to attach ID.
+            // For smoother UI, we'll append, then update ID when server responds.
+            
+            const TempId = 'temp-' + Date.now();
+            const MsgEl = document.createElement('div');
+            MsgEl.className = 'message sent';
+            MsgEl.innerHTML = `
+                ${Text} <button class="msg-delete-btn" style="display:none;">x</button>
+                <span class="timestamp">${TimeString}</span>
+            `;
+            MessagesArea.appendChild(MsgEl);
+
+            ChatInput.value = '';
+            MessagesArea.scrollTop = MessagesArea.scrollHeight;
+
+            if(State.Token) {
+                 try {
+                    const res = await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-access-token': State.Token
+                        },
+                        body: JSON.stringify({
+                            receiver_id: State.ActiveChatUserId,
+                            content: Text,
+                            timestamp: TimeString
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.id) {
+                        // Update button to be enabled and have ID
+                        const btn = MsgEl.querySelector('.msg-delete-btn');
+                        btn.style.display = 'inline-block';
+                        btn.onclick = () => DeleteMessage(data.id, btn);
+                    }
+                 } catch(e) { console.error(e); }
+            }
+        }
+
+        ChatInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                SendMessage();
+            }
+        });
+
+
+        // --- Call System ---
+        async function StartCall() {
+            const Partner = State.Users.find(u => u.Id === State.ActiveChatUserId);
+            if(!Partner) return;
+
+            State.IsInCall = true;
+            ChatView.classList.add('hidden');
+            CallView.classList.remove('hidden');
+
+            // 1. Initial State: Only ME, waiting for "Partner"
+            RenderCallGrid([State.CurrentUser]);
+            EnsureLocalParticipantInGrid();
+
+            // 2. Simulate Zorg Joining after delay
+            setTimeout(() => {
+                if(State.IsInCall) {
+                    RenderCallGrid([State.CurrentUser, Partner]);
+                }
+            }, 1000 + Math.random() * 2000); // 1-3 seconds
+
+            try {
+                // Audio Fix: Interact with Context on user gesture
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if(!State.AudioContext) {
+                    State.AudioContext = new AudioContextClass();
+                }
+                if(State.AudioContext.state === 'suspended') {
+                    await State.AudioContext.resume();
+                }
+
+                // Request media with fallbacks.
+                // NOTE: {audio:true, video:true} can fail completely if either is denied.
+                let Stream = null;
+                try {
+                    Stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                } catch (e1) {
+                    try {
+                        Stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    } catch (e2) {
+                        Stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    }
+                }
+
+                State.MicrophoneStream = Stream;
+                
+                // Initialize toggle states based on current stream
+                UpdateMediaStateUI(); 
+
+                SetupSoundMeter(Stream); // New robust approach
+            } catch (Err) {
+                console.warn("Mic/Cam access denied or missing", Err);
+                // Proceed without audio input (Passive join)
+                // Just ensure we don't crash the UI
+            }
+        }
+
+        async function EnsureLocalVideoTrack() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+
+            if (State.MicrophoneStream && State.MicrophoneStream.getVideoTracks().length > 0) {
+                return true;
+            }
+
+            try {
+                const VideoOnly = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                const Track = VideoOnly.getVideoTracks()[0];
+                if (!Track) return false;
+
+                if (!State.MicrophoneStream) {
+                    State.MicrophoneStream = new MediaStream([Track]);
+                } else {
+                    State.MicrophoneStream.addTrack(Track);
+                }
+                return true;
+            } catch (e) {
+                console.warn('Could not acquire camera video track', e);
+                const isNotAllowed = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+                if (isNotAllowed) {
+                    SetCallNotice('Camera access blocked. Enable camera permissions in Windows privacy settings and in your browser site settings for localhost.', 'error', 8000);
+                } else {
+                    SetCallNotice('Could not start camera. Is it in use by another app?', 'error', 6000);
+                }
+                return false;
+            }
+        }
+
+        function EnsureLocalParticipantInGrid() {
+            if (!State.CurrentUser || !CallGrid) return;
+            if (document.getElementById('participant-me')) return;
+
+            const El = document.createElement('div');
+            El.className = 'call-participant';
+            El.id = 'participant-me';
+
+            El.oncontextmenu = (e) => {
+                e.preventDefault();
+                OpenContextMenu(e, State.CurrentUser);
+            };
+
+            El.innerHTML = `
+                <img src="${State.CurrentUser.Avatar}" class="avatar" id="my-avatar-img" alt="Avatar">
+                <video id="my-local-video" autoplay muted playsinline style="width:100%; height:100%; object-fit:cover; position:absolute; border-radius:10px; display:none;"></video>
+                <span class="name" style="z-index:10; position:relative;">${State.CurrentUser.Name} (Jij)</span>
+                <span class="desc" style="z-index:10; position:relative;">${State.CurrentUser.Description || ''}</span>
+                <div id="participant-status-me" style="position:absolute; top:10px; right:10px; font-size:20px; z-index:10;"></div>
+                <div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;">Vol: 0</div>
+            `;
+
+            CallGrid.appendChild(El);
+
+            const Count = CallGrid.querySelectorAll('.call-participant').length;
+            CallGrid.setAttribute('data-users', String(Count));
+        }
+
+        // Add Toggle Logic
+        function ToggleMic() {
+            // Updated: Toggle Intent First
+            State.LocalMute = !State.LocalMute;
+            
+            // If we have a stream, apply it
+            if(State.MicrophoneStream) {
+                const AudioTracks = State.MicrophoneStream.getAudioTracks();
+                if(AudioTracks.length > 0) {
+                    AudioTracks[0].enabled = !State.LocalMute;
+                }
+            }
+            UpdateMediaStateUI();
+        }
+
+        async function ToggleCam() {
+            // Toggle Intent
+            const NextState = !State.CamEnabled;
+            State.CamEnabled = NextState;
+
+            // If turning on and we don't yet have a video track (e.g., call started audio-only), acquire one.
+            if (NextState) {
+                const ok = await EnsureLocalVideoTrack();
+                if (!ok) {
+                    State.CamEnabled = false;
+                    UpdateMediaStateUI();
+                    return;
+                }
+                EnsureLocalParticipantInGrid();
+            }
+
+            if(State.MicrophoneStream) {
+                const VideoTracks = State.MicrophoneStream.getVideoTracks();
+                if(VideoTracks.length > 0) {
+                    VideoTracks[0].enabled = State.CamEnabled;
+                }
+            }
+            UpdateMediaStateUI();
+        }
+
+        function UpdateLocalVideoLink() {
+            const VideoEl = document.getElementById('my-local-video');
+            const AvatarEl = document.getElementById('my-avatar-img');
+            
+            if (!VideoEl || !AvatarEl) {
+                // If the user toggled cam but the grid hasn't rendered yet, create our tile.
+                EnsureLocalParticipantInGrid();
+            }
+
+            const VideoEl2 = document.getElementById('my-local-video');
+            const AvatarEl2 = document.getElementById('my-avatar-img');
+
+            if(VideoEl2 && AvatarEl2) {
+                const HasVideoTrack = !!(State.MicrophoneStream && State.MicrophoneStream.getVideoTracks().length > 0);
+
+                if(State.CamEnabled && HasVideoTrack) {
+                    VideoEl2.srcObject = State.MicrophoneStream;
+                    VideoEl2.style.display = 'block';
+                    AvatarEl2.style.display = 'none';
+                } else {
+                    VideoEl2.style.display = 'none';
+                    AvatarEl2.style.display = 'flex';
+                    VideoEl2.srcObject = null;
+                }
+            }
+        }
+
+        function ToggleDeafen() {
+            State.LocalDeafen = !State.LocalDeafen;
+            
+            if (State.LocalDeafen) {
+                // Determine if we were already muted
+                // If not muted, mute now.
+                if(!State.LocalMute) {
+                    State.PreDeafenMuteState = false; // We were unmuted
+                    ToggleMic(); // This sets LocalMute=true and updates UI/Stream
+                } else {
+                    State.PreDeafenMuteState = true; // We were already muted
+                }
+            } else {
+                // Undeafen
+                // Restore Mic state only if it was forced by deafen
+                if(State.PreDeafenMuteState === false) {
+                     ToggleMic(); // This sets LocalMute=false
+                }
+            }
+            UpdateMediaStateUI();
+        }
+
+        function UpdateMediaStateUI() {
+             const MicBtn = document.getElementById('hud-mic-btn');
+             const CamBtn = document.getElementById('hud-cam-btn');
+             const DeafBtn = document.getElementById('hud-deafen-btn');
+             const MicBtnS = document.getElementById('sb-mic-btn');
+             const CamBtnS = document.getElementById('sb-cam-btn');
+             const DeafBtnS = document.getElementById('sb-deafen-btn');
+
+             // Logic: LocalMute is the source of truth for Intent.
+             const IsMuted = State.LocalMute;
+             const MicClass = IsMuted ? 'hud-btn off' : 'hud-btn'; 
+             const MicClassS = IsMuted ? 'sidebar-icon-btn off' : 'sidebar-icon-btn';
+             if(MicBtn) MicBtn.className = MicClass;
+             if(MicBtnS) MicBtnS.className = MicClassS;
+             
+             // Update My Grid Icon
+             const MyStatusEl = document.getElementById('participant-status-me');
+             if(MyStatusEl) {
+                 MyStatusEl.textContent = IsMuted ? '🔇' : '';
+             }
+
+             // Cam 
+             const IsCamOn = State.CamEnabled;
+             const CamClass = IsCamOn ? 'hud-btn' : 'hud-btn off';
+             const CamClassS = IsCamOn ? 'sidebar-icon-btn' : 'sidebar-icon-btn off';
+             if(CamBtn) CamBtn.className = CamClass;
+             if(CamBtnS) CamBtnS.className = CamClassS;
+             
+             // Update Video Element Visibility
+             UpdateLocalVideoLink();
+
+             // Deafen
+             const DeafClass = State.LocalDeafen ? 'hud-btn off' : 'hud-btn';
+             const DeafClassS = State.LocalDeafen ? 'sidebar-icon-btn off' : 'sidebar-icon-btn';
+             if(DeafBtn) DeafBtn.className = DeafClass;
+             if(DeafBtnS) DeafBtnS.className = DeafClassS;
+        }
+
+        function EndCall() {
+            State.IsInCall = false;
+            CallView.classList.add('hidden');
+            ChatView.classList.remove('hidden');
+
+            SetCallNotice(null);
+            
+            if(State.MicrophoneStream) {
+                State.MicrophoneStream.getTracks().forEach(Track => Track.stop());
+                State.MicrophoneStream = null;
+            }
+
+            if(State.AudioSource) {
+                State.AudioSource.disconnect();
+                State.AudioSource = null;
+            }
+            
+            // Re-render chat header to make sure things stay consistent
+            if(State.ActiveChatUserId) SelectUser(State.ActiveChatUserId);
+
+            
+            // Note: We keep AudioContext alive for reuse to prevent browser limit issues
+            if(State.AudioContext && State.AudioContext.state === 'running') {
+                 try { State.AudioContext.suspend(); } catch(e) {}
+            }
+        }
+
+        // --- View Updates ---
+        function RenderCallGrid(Participants) {
+            CallGrid.innerHTML = '';
+            CallGrid.setAttribute('data-users', Participants.length);
+            
+            Participants.forEach(P => {
+                const El = document.createElement('div');
+                El.className = 'call-participant';
+                El.id = `participant-${P.Name === State.CurrentUser.Name ? 'me' : 'other'}`; 
+                
+                // Context Menu Event
+                El.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    OpenContextMenu(e, P);
+                };
+
+                let MediaContent = `<img src="${P.Avatar}" class="avatar" alt="Avatar">`;
+                
+                // If it is ME, and Camera is enabled, use Video (handled dynamically by update)
+                // But we need a slot for the video
+                if(P.Name === State.CurrentUser.Name) {
+                    MediaContent = `
+                        <img src="${P.Avatar}" class="avatar" id="my-avatar-img" alt="Avatar">
+                        <video id="my-local-video" autoplay muted playsinline style="width:100%; height:100%; object-fit:cover; position:absolute; border-radius:10px; display:none;"></video>
+                    `;
+                }
+
+                El.innerHTML = `
+                    ${MediaContent}
+                    <span class="name" style="z-index:10; position:relative;">${P.Name} ${P.Name === State.CurrentUser.Name ? '(Jij)' : ''}</span>
+                    <span class="desc" style="z-index:10; position:relative;">${P.Description || ''}</span>
+                    <div id="participant-status-${P.Name === State.CurrentUser.Name ? 'me' : 'other'}" style="position:absolute; top:10px; right:10px; font-size:20px; z-index:10;"></div>
+                    ${P.Name === State.CurrentUser.Name ? '<div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;">Vol: 0</div>' : ''}
+                `;
+                CallGrid.appendChild(El);
+            });
+            UpdateMediaStateUI(); // Update icons in grid
+        }
+        
+        // --- Context Menu Logic ---
+        const ContextMenu = document.getElementById('context-menu');
+        const CtxSlider = document.getElementById('ctx-volume-slider');
+        
+        // Hide if clicking elsewhere
+        window.addEventListener('click', () => { ContextMenu.classList.add('hidden'); });
+
+        function OpenContextMenu(e, User) {
+            CtxTargetUser = User;
+            // Removed fixed scrolling offset issue by using clientX/Y and fixed positioning CSS
+            // But if CSS is absolute, we need to append to body or calculate offset.
+            // Simplest: use fixed positioning in CSS (already likely) or move to body.
+            // Let's assume standard behavior:
+            ContextMenu.style.position = 'fixed';
+            ContextMenu.style.left = `${e.clientX}px`;
+            ContextMenu.style.top = `${e.clientY}px`;
+            document.getElementById('ctx-header').textContent = User.Name;
+            
+            // In a real app we would read the gain value for this user
+            CtxSlider.value = 100; 
+
+            ContextMenu.classList.remove('hidden');
+        }
+
+        function ShowCtxProfile() {
+             ContextMenu.classList.add('hidden');
+             const VModal = document.getElementById('view-profile-modal');
+             document.getElementById('vp-name').textContent = CtxTargetUser.Name;
+             document.getElementById('vp-desc').textContent = CtxTargetUser.Description || 'Geen beschrijving';
+             document.getElementById('vp-avatar').src = CtxTargetUser.Avatar;
+             VModal.classList.remove('hidden');
+        }
+
+        // --- Audio Logic 2.0 (SoundMeter) ---
+        function SetupSoundMeter(Stream) {
+            // Simplified logic inspired by reputable soundmeter examples
+             try {
+                State.AudioSource = State.AudioContext.createMediaStreamSource(Stream);
+                State.Analyser = State.AudioContext.createAnalyser();
+                State.Analyser.fftSize = 256;
+                State.AudioSource.connect(State.Analyser);
+                
+                const dataArray = new Uint8Array(State.Analyser.frequencyBinCount);
+                
+                function Draw() {
+                    if(!State.IsInCall) return;
+
+                    State.Analyser.getByteFrequencyData(dataArray);
+                    
+                    // Simple average
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    const volume = sum / dataArray.length;
+                    
+                    const CurrentEl = document.getElementById('participant-me');
+                    const VolEl = document.getElementById('my-volume-level');
+                    if(VolEl) VolEl.textContent = `Vol: ${Math.round(volume)}`;
+
+                    if (volume > 10 && !State.LocalMute) {
+                         if(CurrentEl) CurrentEl.classList.add('speaking');
+                    } else {
+                         if(CurrentEl) CurrentEl.classList.remove('speaking');
+                    }
+
+                    requestAnimationFrame(Draw);
+                }
+                Draw();
+             } catch(e) { console.error("SoundMeter Error", e); }
+        }
+
+        // --- Auto Login Check ---
+        (function() {
+            try {
+                const t = localStorage.getItem('vcall_token');
+                const u = localStorage.getItem('vcall_user');
+                if(t && u) {
+                    const parsedUser = JSON.parse(u);
+                    HandleAuthSuccess({ token: t, user: parsedUser });
+                }
+            } catch(e) { console.warn("Auto-login failed", e); }
+        })();
+
+    </script>
+</body>
+</html>

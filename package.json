@@ -1,0 +1,15 @@
+{
+  "name": "video-calling-app",
+  "version": "1.0.0",
+  "description": "Simple Video Calling HUD",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.6"
+  }
+}
