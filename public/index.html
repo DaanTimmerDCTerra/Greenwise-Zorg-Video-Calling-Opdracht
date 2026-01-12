@@ -583,10 +583,18 @@
 
                 State.MicrophoneStream = Stream;
                 
+                // If we ended up with video-only (or audio-only), try to acquire the missing piece.
+                // This keeps the UI features (meter/video) working even when combined constraints fail.
+                await EnsureLocalAudioTrack();
+
+                // Ensure current mute preference is applied to any newly acquired tracks.
+                ApplyLocalAudioIntent();
+
                 // Initialize toggle states based on current stream
                 UpdateMediaStateUI(); 
 
-                SetupSoundMeter(Stream); // New robust approach
+                SetupSoundMeter(State.MicrophoneStream);
+
             } catch (Err) {
                 console.warn("Mic/Cam access denied or missing", Err);
                 // Proceed without audio input (Passive join)
@@ -624,6 +632,36 @@
             }
         }
 
+        async function EnsureLocalAudioTrack() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+
+            if (State.MicrophoneStream && State.MicrophoneStream.getAudioTracks().length > 0) {
+                return true;
+            }
+
+            try {
+                const AudioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const Track = AudioOnly.getAudioTracks()[0];
+                if (!Track) return false;
+
+                if (!State.MicrophoneStream) {
+                    State.MicrophoneStream = new MediaStream([Track]);
+                } else {
+                    State.MicrophoneStream.addTrack(Track);
+                }
+                return true;
+            } catch (e) {
+                console.warn('Could not acquire microphone audio track', e);
+                const isNotAllowed = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+                if (isNotAllowed) {
+                    SetCallNotice('Microphone access blocked. Enable mic permissions in Windows privacy settings and in your browser site settings for localhost.', 'error', 8000);
+                } else {
+                    SetCallNotice('Could not start microphone. Is it in use by another app?', 'error', 6000);
+                }
+                return false;
+            }
+        }
+
         function EnsureLocalParticipantInGrid() {
             if (!State.CurrentUser || !CallGrid) return;
             if (document.getElementById('participant-me')) return;
@@ -653,17 +691,19 @@
         }
 
         // Add Toggle Logic
+        function ApplyLocalAudioIntent() {
+            if (!State.MicrophoneStream) return;
+            const AudioTracks = State.MicrophoneStream.getAudioTracks();
+            if (!AudioTracks || AudioTracks.length === 0) return;
+            AudioTracks.forEach(t => { t.enabled = !State.LocalMute; });
+        }
+
         function ToggleMic() {
             // Updated: Toggle Intent First
             State.LocalMute = !State.LocalMute;
             
             // If we have a stream, apply it
-            if(State.MicrophoneStream) {
-                const AudioTracks = State.MicrophoneStream.getAudioTracks();
-                if(AudioTracks.length > 0) {
-                    AudioTracks[0].enabled = !State.LocalMute;
-                }
-            }
+            ApplyLocalAudioIntent();
             UpdateMediaStateUI();
         }
 
@@ -761,6 +801,9 @@
              if(MyStatusEl) {
                  MyStatusEl.textContent = IsMuted ? '🔇' : '';
              }
+
+             // Ensure audio track enabled state matches UI intent (covers streams added later)
+             ApplyLocalAudioIntent();
 
              // Cam 
              const IsCamOn = State.CamEnabled;
@@ -878,43 +921,71 @@
              VModal.classList.remove('hidden');
         }
 
-        // --- Audio Logic 2.0 (SoundMeter) ---
-        function SetupSoundMeter(Stream) {
-            // Simplified logic inspired by reputable soundmeter examples
-             try {
-                State.AudioSource = State.AudioContext.createMediaStreamSource(Stream);
-                State.Analyser = State.AudioContext.createAnalyser();
-                State.Analyser.fftSize = 256;
-                State.AudioSource.connect(State.Analyser);
-                
-                const dataArray = new Uint8Array(State.Analyser.frequencyBinCount);
-                
-                function Draw() {
-                    if(!State.IsInCall) return;
+        // --- Audio Logic (SoundMeter) ---
+        function SetupSoundMeter(stream) {
+            try {
+                if (!State.AudioContext) return;
 
-                    State.Analyser.getByteFrequencyData(dataArray);
-                    
-                    // Simple average
-                    let sum = 0;
-                    for (let i = 0; i < dataArray.length; i++) {
-                        sum += dataArray[i];
-                    }
-                    const volume = sum / dataArray.length;
-                    
-                    const CurrentEl = document.getElementById('participant-me');
-                    const VolEl = document.getElementById('my-volume-level');
-                    if(VolEl) VolEl.textContent = `Vol: ${Math.round(volume)}`;
-
-                    if (volume > 10 && !State.LocalMute) {
-                         if(CurrentEl) CurrentEl.classList.add('speaking');
-                    } else {
-                         if(CurrentEl) CurrentEl.classList.remove('speaking');
-                    }
-
-                    requestAnimationFrame(Draw);
+                const AudioTracks = stream ? stream.getAudioTracks() : [];
+                const VolEl = document.getElementById('my-volume-level');
+                if (!AudioTracks || AudioTracks.length === 0) {
+                    if (VolEl) VolEl.textContent = 'Vol: --';
+                    return;
                 }
-                Draw();
-             } catch(e) { console.error("SoundMeter Error", e); }
+
+                // Use only audio tracks for analysis
+                const AudioStream = new MediaStream(AudioTracks);
+
+                // Clean up previous nodes if any
+                if (State.AudioSource) {
+                    try { State.AudioSource.disconnect(); } catch(e) {}
+                    State.AudioSource = null;
+                }
+                if (State.Analyser) {
+                    try { State.Analyser.disconnect(); } catch(e) {}
+                    State.Analyser = null;
+                }
+
+                State.AudioSource = State.AudioContext.createMediaStreamSource(AudioStream);
+                State.Analyser = State.AudioContext.createAnalyser();
+                State.Analyser.fftSize = 2048;
+                State.AudioSource.connect(State.Analyser);
+
+                const dataArray = new Uint8Array(State.Analyser.fftSize);
+
+                function tick() {
+                    if (!State.IsInCall) return;
+
+                    if (State.AudioContext && State.AudioContext.state === 'suspended') {
+                        // Best-effort resume; some browsers require a gesture
+                        State.AudioContext.resume().catch(() => {});
+                    }
+
+                    State.Analyser.getByteTimeDomainData(dataArray);
+                    let sumSquares = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const v = (dataArray[i] - 128) / 128;
+                        sumSquares += v * v;
+                    }
+                    const rms = Math.sqrt(sumSquares / dataArray.length);
+                    const level = Math.min(100, Math.round(rms * 300));
+
+                    if (VolEl) VolEl.textContent = `Vol: ${level}`;
+
+                    const me = document.getElementById('participant-me');
+                    if (level > 8 && !State.LocalMute) {
+                        me?.classList.add('speaking');
+                    } else {
+                        me?.classList.remove('speaking');
+                    }
+
+                    requestAnimationFrame(tick);
+                }
+
+                tick();
+            } catch (e) {
+                console.error('SoundMeter Error', e);
+            }
         }
 
         // --- Auto Login Check ---
