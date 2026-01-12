@@ -8,7 +8,7 @@ const PORT = 3000;
 const SECRET_KEY = 'secret-key-change-me';
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
 // Database Setup
@@ -161,9 +161,25 @@ app.put('/api/users/me', (req, res) => {
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
         if (err) return res.status(500).json({ auth: false, message: 'Fout bij authenticeren van token.' });
 
-        const { description } = req.body;
-        db.run(`UPDATE users SET description = ? WHERE id = ?`, [description, decoded.id], function(err) {
-            if (err) return res.status(500).json({ error: "Update mislukt" });
+        const { username, avatar, description, password } = req.body;
+        
+        let query = "UPDATE users SET username = ?, avatar = ?, description = ?";
+        let params = [username, avatar, description];
+
+        if (password && password.trim() !== "") {
+            query += ", password = ?";
+            params.push(bcrypt.hashSync(password, 8));
+        }
+
+        query += " WHERE id = ?";
+        params.push(decoded.id);
+
+        db.run(query, params, function(err) {
+            if (err) {
+                console.error(err);
+                if(err.message.includes('UNIQUE')) return res.status(400).json({ error: "Gebruikersnaam is al in gebruik" });
+                return res.status(500).json({ error: "Update mislukt" });
+            }
             res.json({ success: true });
         });
     });

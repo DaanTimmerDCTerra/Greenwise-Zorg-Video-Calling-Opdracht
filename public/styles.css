@@ -541,3 +541,21 @@ body {
     justify-content: flex-end;
     gap: 10px;
 }
+
+/* View Profile Modal - Floating Frame */
+#view-profile-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3000;
+}
+#view-profile-modal .modal-content {
+    cursor: grab;
+    width: 320px; /* Smaller cube shape as requested */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 1px solid rgba(100,100,200,0.3);
+}
+#view-profile-modal .modal-content:active {
+    cursor: grabbing;
+}

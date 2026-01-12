@@ -139,11 +139,25 @@
          <div id="profile-modal" class="hidden">
             <div class="modal-content">
                 <h3>Profiel Bewerken</h3>
-                <label>Gebruikersnaam (Alleen Lezen)</label>
-                <input type="text" id="edit-username" disabled>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img id="edit-avatar-preview" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #555;">
+                    <br>
+                    <label for="edit-avatar-input" class="text-link" style="cursor: pointer; font-size: 12px;">Wijzig Avatar</label>
+                    <input type="file" id="edit-avatar-input" accept="image/*" style="display: none;" onchange="PreviewAvatar(this)">
+                </div>
+
+                <label>Gebruikersnaam</label>
+                <input type="text" id="edit-username">
                 
                 <label>Beschrijving</label>
                 <input type="text" id="edit-desc" placeholder="Jouw status...">
+
+                <label>Nieuw Wachtwoord (Optioneel)</label>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <input type="password" id="edit-password" placeholder="Laat leeg om huidig te behouden" style="margin-top:0;">
+                    <button type="button" class="btn" onclick="TogglePasswordVis()" style="padding: 10px;">👁️</button>
+                </div>
 
                 <div class="modal-actions">
                     <button class="btn btn-danger" onclick="Logout()" style="margin-right:auto;">Uitloggen</button>
@@ -176,6 +190,7 @@
             ActiveChatUserId: 1,
             IsInCall: false,
             AudioContext: null,
+            MicrophoneLevel: 0,
             Analyser: null,
             MicrophoneStream: null,
             AudioSource: null,
@@ -357,9 +372,27 @@
             `;
         }
 
+        function PreviewAvatar(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('edit-avatar-preview').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function TogglePasswordVis() {
+            const el = document.getElementById('edit-password');
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
         function OpenProfileModal() {
             document.getElementById('edit-username').value = State.CurrentUser.Name;
             document.getElementById('edit-desc').value = State.CurrentUser.Description || '';
+            document.getElementById('edit-avatar-preview').src = State.CurrentUser.Avatar;
+            document.getElementById('edit-avatar-input').value = "";
+            document.getElementById('edit-password').value = ""; // Clear password field
             ProfileModal.classList.remove('hidden');
         }
 
@@ -368,28 +401,78 @@
         }
 
         async function SaveProfile() {
-            const newDesc = document.getElementById('edit-desc').value;
-            State.CurrentUser.Description = newDesc;
+            const newName = document.getElementById('edit-username').value.trim();
+            const newDesc = document.getElementById('edit-desc').value.trim();
+            const newPassword = document.getElementById('edit-password').value;
+            const fileInput = document.getElementById('edit-avatar-input');
+            
+            if(!newName) return alert("Gebruikersnaam mag niet leeg zijn");
 
-            // Optimistic update
-            RenderMyProfile();
-            CloseProfileModal();
+            let newAvatar = State.CurrentUser.Avatar;
 
-            // Send to backend
+            const readFile = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                try {
+                    newAvatar = await readFile(fileInput.files[0]);
+                } catch(e) {
+                    console.error("Error reading file", e);
+                    return alert("Kon afbeelding niet lezen.");
+                }
+            }
+
             try {
-                await fetch('/api/users/me', {
+                const res = await fetch('/api/users/me', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-access-token': State.Token
                     },
-                    body: JSON.stringify({ description: newDesc })
+                    body: JSON.stringify({ 
+                        username: newName,
+                        description: newDesc,
+                        avatar: newAvatar,
+                        password: newPassword 
+                    })
                 });
-            } catch(e) { console.error("Save failed", e); }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    State.CurrentUser.Name = newName;
+                    State.CurrentUser.Description = newDesc;
+                    State.CurrentUser.Avatar = newAvatar;
+                    
+                    let u = JSON.parse(localStorage.getItem('vcall_user'));
+                    u.username = newName;
+                    u.description = newDesc;
+                    u.avatar = newAvatar;
+                    localStorage.setItem('vcall_user', JSON.stringify(u));
+
+                    RenderMyProfile();
+                    CloseProfileModal();
+                    if(newPassword) alert("Profiel en wachtwoord bijgewerkt!");
+                } else {
+                    alert(data.error || "Opslaan mislukt.");
+                }
+            } catch(e) { 
+                console.error("Save failed", e);
+                alert("Kon niet verbinden met server.");
+            }
         }
 
         function Logout() {
             if(confirm("Weet je zeker dat je wilt uitloggen?")) {
+                localStorage.removeItem('vcall_token');
+                localStorage.removeItem('vcall_user');
+
                 State.Token = null;
                 State.CurrentUser = null;
                 
@@ -399,6 +482,9 @@
                 
                 // Clear inputs
                 document.getElementById('login-password').value = '';
+                
+                // Reload to reset all state cleanly
+                window.location.reload();
             }
         }
 
@@ -586,7 +672,9 @@
                 // If we ended up with video-only (or audio-only), try to acquire the missing piece.
                 // This keeps the UI features (meter/video) working even when combined constraints fail.
                 await EnsureLocalAudioTrack();
-
+                console.log("lets go do this")
+                console.log('Mic level:', State.MicrophoneLevel);
+                console.log("waazza")
                 // Ensure current mute preference is applied to any newly acquired tracks.
                 ApplyLocalAudioIntent();
 
@@ -602,64 +690,165 @@
             }
         }
 
-        async function EnsureLocalVideoTrack() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+        async function EnsureLocalAudioTrack() {
+            if (!navigator.mediaDevices?.getUserMedia) return false;
 
-            if (State.MicrophoneStream && State.MicrophoneStream.getVideoTracks().length > 0) {
+            if (State.MicrophoneStream?.getAudioTracks()?.length > 0) {
                 return true;
             }
 
             try {
-                const VideoOnly = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                const Track = VideoOnly.getVideoTracks()[0];
-                if (!Track) return false;
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    },
+                    video: false
+                });
+
+                const track = stream.getAudioTracks()[0];
+                if (!track) return false;
 
                 if (!State.MicrophoneStream) {
-                    State.MicrophoneStream = new MediaStream([Track]);
-                } else {
-                    State.MicrophoneStream.addTrack(Track);
+                    State.MicrophoneStream = new MediaStream();
                 }
+                State.MicrophoneStream.addTrack(track);
+
+                SetupSoundMeter(State.MicrophoneStream);
+
                 return true;
             } catch (e) {
-                console.warn('Could not acquire camera video track', e);
-                const isNotAllowed = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-                if (isNotAllowed) {
-                    SetCallNotice('Camera access blocked. Enable camera permissions in Windows privacy settings and in your browser site settings for localhost.', 'error', 8000);
+                console.warn('Could not acquire microphone audio track', e);
+
+                if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
+                    SetCallNotice(
+                        'Microphone access blocked. Enable mic permissions in browser and OS.',
+                        'error',
+                        8000
+                    );
                 } else {
-                    SetCallNotice('Could not start camera. Is it in use by another app?', 'error', 6000);
+                    SetCallNotice(
+                        'Could not start microphone. Is it in use by another app?',
+                        'error',
+                        6000
+                    );
                 }
                 return false;
             }
         }
 
-        async function EnsureLocalAudioTrack() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+        async function EnsureLocalVideoTrack() {
+            if (!navigator.mediaDevices?.getUserMedia) return false;
 
-            if (State.MicrophoneStream && State.MicrophoneStream.getAudioTracks().length > 0) {
+            if (State.MicrophoneStream?.getVideoTracks()?.length > 0) {
                 return true;
             }
 
             try {
-                const AudioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                const Track = AudioOnly.getAudioTracks()[0];
-                if (!Track) return false;
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+                const track = stream.getVideoTracks()[0];
+                if (!track) return false;
 
                 if (!State.MicrophoneStream) {
-                    State.MicrophoneStream = new MediaStream([Track]);
-                } else {
-                    State.MicrophoneStream.addTrack(Track);
+                    State.MicrophoneStream = new MediaStream();
                 }
+                State.MicrophoneStream.addTrack(track);
+
+                UpdateLocalVideoLink();
                 return true;
             } catch (e) {
-                console.warn('Could not acquire microphone audio track', e);
-                const isNotAllowed = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-                if (isNotAllowed) {
-                    SetCallNotice('Microphone access blocked. Enable mic permissions in Windows privacy settings and in your browser site settings for localhost.', 'error', 8000);
+                console.warn('Could not acquire camera track', e);
+
+                if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
+                    SetCallNotice(
+                        'Camera access blocked. Enable camera permissions in browser and OS.',
+                        'error',
+                        8000
+                    );
                 } else {
-                    SetCallNotice('Could not start microphone. Is it in use by another app?', 'error', 6000);
+                    SetCallNotice(
+                        'Kon camera niet aanzetten. Staat hij al open in een andere app?',
+                        'error',
+                        6000
+                    );
                 }
                 return false;
             }
+        }
+
+        function SetupSoundMeter(stream) {
+            console.log("Setting up sound meter...");
+            if (!State.AudioContext) {
+                State.AudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const audioTracks = stream.getAudioTracks();
+            if (!audioTracks.length) return;
+
+            const audioStream = new MediaStream(audioTracks);
+
+            State.AudioSource?.disconnect();
+            State.Analyser?.disconnect();
+
+            State.AudioSource = State.AudioContext.createMediaStreamSource(audioStream);
+            State.Analyser = State.AudioContext.createAnalyser();
+            State.Analyser.smoothingTimeConstant = 0;
+            State.Analyser.fftSize = 2048;
+
+            State.AudioSource.connect(State.Analyser);
+
+            const data = new Uint8Array(State.Analyser.fftSize);
+
+            function tick() {
+                if (!State.IsInCall) return;
+
+                State.Analyser.getByteTimeDomainData(data);
+
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    const v = (data[i] - 128) / 128;
+                    sum += v * v;
+                }
+                console.log("sum:", sum);
+
+                const rms = Math.sqrt(sum / data.length);
+                console.log("RAW RMS:", rms);
+
+                const MIN_RMS = 0.0005;
+                const MAX_RMS = 0.015; // lowered for typical speaking
+                let normalized = (rms - MIN_RMS) / (MAX_RMS - MIN_RMS);
+                normalized = Math.max(0, Math.min(1, normalized));
+
+                // Optional: smoothing for smoother meter
+                State.MicrophoneLevel = State.MicrophoneLevel * 0.8 + normalized * 100 * 0.2;
+
+                const level = Math.round(State.MicrophoneLevel);
+
+                State.MicrophoneLevel = level;
+
+                console.log("Mic level:", level, "rms:", rms.toFixed(5));
+
+                const volEl = document.getElementById('my-volume-level');
+                if (volEl) volEl.textContent = `Vol: ${level}`;
+
+                const myParticipant = document.getElementById('participant-me');
+                if (myParticipant) {
+                    if (level > 10) {
+                        myParticipant.classList.add('speaking');
+                    } else {
+                        myParticipant.classList.remove('speaking');
+                    }
+                }
+
+                requestAnimationFrame(tick);
+            }
+
+            tick();
         }
 
         function EnsureLocalParticipantInGrid() {
@@ -921,72 +1110,49 @@
              VModal.classList.remove('hidden');
         }
 
-        // --- Audio Logic (SoundMeter) ---
-        function SetupSoundMeter(stream) {
-            try {
-                if (!State.AudioContext) return;
 
-                const AudioTracks = stream ? stream.getAudioTracks() : [];
-                const VolEl = document.getElementById('my-volume-level');
-                if (!AudioTracks || AudioTracks.length === 0) {
-                    if (VolEl) VolEl.textContent = 'Vol: --';
-                    return;
+        // --- Draggable Modal Logic ---
+        function MakeDraggable(modalEl) {
+            const content = modalEl.querySelector('.modal-content');
+            if(!content) return;
+            
+            let isDown = false;
+            let offset = [0,0];
+
+            content.addEventListener('mousedown', (e) => {
+                if(['BUTTON', 'INPUT'].includes(e.target.tagName)) return;
+                isDown = true;
+                
+                // If the element is centered via transform, we need to fix its position to pixels
+                // to allow smooth dragging without transform fighting us.
+                const style = window.getComputedStyle(modalEl);
+                const rect = modalEl.getBoundingClientRect();
+                
+                if (style.transform !== 'none') {
+                    modalEl.style.transform = 'none';
+                    modalEl.style.left = rect.left + 'px';
+                    modalEl.style.top = rect.top + 'px';
                 }
 
-                // Use only audio tracks for analysis
-                const AudioStream = new MediaStream(AudioTracks);
+                offset = [
+                    modalEl.offsetLeft - e.clientX,
+                    modalEl.offsetTop - e.clientY
+                ];
+            });
 
-                // Clean up previous nodes if any
-                if (State.AudioSource) {
-                    try { State.AudioSource.disconnect(); } catch(e) {}
-                    State.AudioSource = null;
+            document.addEventListener('mouseup', () => { isDown = false; });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDown) {
+                    e.preventDefault();
+                    modalEl.style.left = (e.clientX + offset[0]) + 'px';
+                    modalEl.style.top = (e.clientY + offset[1]) + 'px';
                 }
-                if (State.Analyser) {
-                    try { State.Analyser.disconnect(); } catch(e) {}
-                    State.Analyser = null;
-                }
-
-                State.AudioSource = State.AudioContext.createMediaStreamSource(AudioStream);
-                State.Analyser = State.AudioContext.createAnalyser();
-                State.Analyser.fftSize = 2048;
-                State.AudioSource.connect(State.Analyser);
-
-                const dataArray = new Uint8Array(State.Analyser.fftSize);
-
-                function tick() {
-                    if (!State.IsInCall) return;
-
-                    if (State.AudioContext && State.AudioContext.state === 'suspended') {
-                        // Best-effort resume; some browsers require a gesture
-                        State.AudioContext.resume().catch(() => {});
-                    }
-
-                    State.Analyser.getByteTimeDomainData(dataArray);
-                    let sumSquares = 0;
-                    for (let i = 0; i < dataArray.length; i++) {
-                        const v = (dataArray[i] - 128) / 128;
-                        sumSquares += v * v;
-                    }
-                    const rms = Math.sqrt(sumSquares / dataArray.length);
-                    const level = Math.min(100, Math.round(rms * 300));
-
-                    if (VolEl) VolEl.textContent = `Vol: ${level}`;
-
-                    const me = document.getElementById('participant-me');
-                    if (level > 8 && !State.LocalMute) {
-                        me?.classList.add('speaking');
-                    } else {
-                        me?.classList.remove('speaking');
-                    }
-
-                    requestAnimationFrame(tick);
-                }
-
-                tick();
-            } catch (e) {
-                console.error('SoundMeter Error', e);
-            }
+            });
         }
+        
+        // Init Drag
+        MakeDraggable(document.getElementById('view-profile-modal'));
 
         // --- Auto Login Check ---
         (function() {
