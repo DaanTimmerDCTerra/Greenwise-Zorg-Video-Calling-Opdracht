@@ -43,6 +43,11 @@ body {
     background: var(--primary-gradient); 
     color: white; 
 }
+.btn-large {
+    padding: 15px 32px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+}
 .btn-danger { background-color: #ef4444; color: white; }
 .text-link {
     color: var(--primary);
@@ -435,9 +440,11 @@ body {
 
 .end-call-btn {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    width: 60px;
+    /* Changed to pill shape for better visibility */
+    width: auto;
+    padding: 0 30px;
     height: 60px;
-    border-radius: 50%;
+    border-radius: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -445,13 +452,9 @@ body {
     border: none;
     box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
     transition: transform 0.2s;
+    color: white;
 }
 .end-call-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6); }
-.end-call-btn img {
-    width: 28px;
-    height: 28px;
-    filter: invert(1);
-}
 
 
 /* Guide Modal with Arrows */

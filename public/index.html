@@ -44,11 +44,11 @@
                 <div class="my-profile-preview" id="my-profile-preview" onclick="OpenProfileModal()">
                     <!-- Injected JS -->
                 </div>
-                <div class="sidebar-controls">
+                <!-- <div class="sidebar-controls">
                     <button class="sidebar-icon-btn" id="sb-mic-btn" onclick="ToggleMic()" title="Mic">🎤</button>
                     <button class="sidebar-icon-btn" id="sb-cam-btn" onclick="ToggleCam()" title="Camera">📷</button>
                     <button class="sidebar-icon-btn" id="sb-deafen-btn" onclick="ToggleDeafen()" title="Deafen">🎧</button>
-                </div>
+                </div> -->
             </div>
         </div>
 
@@ -61,7 +61,7 @@
                     <div class="chat-user-info" id="chat-header-info">
                         <!-- Injected JS -->
                     </div>
-                    <button class="btn btn-primary" onclick="StartCall()">📞 Bellen</button>
+                    <button class="btn btn-primary btn-large" onclick="StartCall()">📞 Bellen</button>
                 </div>
                 <div class="messages-area" id="messages-area">
                     <!-- Default text per request -->
@@ -92,7 +92,10 @@
                     <button class="hud-btn" id="hud-cam-btn" onclick="ToggleCam()">📷</button>
                     
                     <button class="end-call-btn" onclick="EndCall()">
-                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiA5Yy0xLjYgMC0zLjEuMjgtNC41MS44MmwtMS45LTEuOWMtLjUxLS41MS0xLjI4LS41MS0xLjc5IDBsLTIuMzkgMi4zOWMtLjIuMi0uMjkuNDYtLjI4LjczLjAxLjI5LjEyLjU2LjM0Ljc2IDIuNTYgMi4zIDUuOTMgMy43MiA5LjUzIDMuNzJzNi45Ny0xLjQyIDkuNTMtMy43MmMuMjItLjIuMzMtLjQ3LjM0LS43Ni4wMS0uMjgtLjA5LS41My0uMjgtLjczbC0yLjM5LTIuMzljLS41MS0uNTEtMS4yOC0uNTEtMS43OSAwbC0xLjkgMS45QzE1LjA5IDkuMjggMTMuNiA5IDEyIDl6Ii8+PC9zdmc+" alt="Ophangen">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="28" height="28">
+                            <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                        </svg>
+                        <span style="margin-left: 10px; font-size: 18px; font-weight: bold;">Ophangen</span>
                     </button>
                     
                      <button class="hud-btn" id="hud-deafen-btn" onclick="ToggleDeafen()">🎧</button>
@@ -832,9 +835,7 @@
                 State.MicrophoneLevel = level;
 
                 console.log("Mic level:", level, "rms:", rms.toFixed(5));
-
                 const volEl = document.getElementById('my-volume-level');
-                if (volEl) volEl.textContent = `Vol: ${level}`;
 
                 const myParticipant = document.getElementById('participant-me');
                 if (myParticipant) {
@@ -870,7 +871,7 @@
                 <span class="name" style="z-index:10; position:relative;">${State.CurrentUser.Name} (Jij)</span>
                 <span class="desc" style="z-index:10; position:relative;">${State.CurrentUser.Description || ''}</span>
                 <div id="participant-status-me" style="position:absolute; top:10px; right:10px; font-size:20px; z-index:10;"></div>
-                <div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;">Vol: 0</div>
+                <div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;"></div>
             `;
 
             CallGrid.appendChild(El);
@@ -1070,7 +1071,7 @@
                     <span class="name" style="z-index:10; position:relative;">${P.Name} ${P.Name === State.CurrentUser.Name ? '(Jij)' : ''}</span>
                     <span class="desc" style="z-index:10; position:relative;">${P.Description || ''}</span>
                     <div id="participant-status-${P.Name === State.CurrentUser.Name ? 'me' : 'other'}" style="position:absolute; top:10px; right:10px; font-size:20px; z-index:10;"></div>
-                    ${P.Name === State.CurrentUser.Name ? '<div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;">Vol: 0</div>' : ''}
+                    ${P.Name === State.CurrentUser.Name ? '<div id="my-volume-level" style="position:absolute; bottom:10px; font-family:monospace; font-size:12px; opacity:0.7; z-index:10;"></div>' : ''}
                 `;
                 CallGrid.appendChild(El);
             });
